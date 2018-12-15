@@ -37,7 +37,6 @@ int call_ri_ps(void *f, const char *s)
 	return function(s);
 } 
 
-
 void call_rv_ps(void *f, const char *s)
 {
 	void (*function)(const char *) = f;
@@ -111,6 +110,8 @@ func getSymbolPointer(name string) unsafe.Pointer {
 		if symbolPointer == nil || e != nil {
 			panic(fmt.Sprintf("Error resolving Tellstick symbol %q: %v", name, C.GoString(e)))
 		}	
+		// Save symbol pointer so it can be reused later
+		symbolPointers[name] = symbolPointer
 	}
 
 	return symbolPointer
