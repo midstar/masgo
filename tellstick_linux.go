@@ -5,11 +5,30 @@ package main
 #include <dlfcn.h>
 #include <stdlib.h>
 
+#define bool char
 
 int call_ri(void *f)
 {
 	int (*function)() = f;
 	return function();
+} 
+
+char * call_rs(void *f)
+{
+	char * (*function)() = f;
+	return function();
+} 
+
+int call_ri_pi(void *f, int i)
+{
+	int (*function)(int) = f;
+	return function(i);
+} 
+
+int call_ri_pii(void *f, int i1, int i2)
+{
+	int (*function)(int, int) = f;
+	return function(i1, i2);
 } 
 
 int call_ri_ps(void *f, const char *s)
@@ -24,6 +43,31 @@ void call_rv_ps(void *f, const char *s)
 	void (*function)(const char *) = f;
 	function(s);
 } 
+
+char * call_rs_pi(void *f, int i)
+{
+	char * (*function)(int) = f;
+	return function(i);
+}
+
+bool call_rb_piss(void *f, int i, const char * s1, const char * s2)
+{
+	bool (*function)(int, const char *, const char *) = f;
+	return function(i, s1, s2);
+}
+
+char * call_rs_piss(void *f, int i, const char * s1, const char * s2)
+{
+	char * (*function)(int, const char *, const char *) = f;
+	return function(i, s1, s2);
+}
+
+
+bool call_rb_pis(void *f, int i, const char *s)
+{
+	bool (*function)(int, const char *s) = f;
+	return function(i, s);
+}
 
 */
 import "C"
@@ -76,6 +120,21 @@ func callRi(name string) int {
 	return int(C.call_ri(getSymbolPointer(name)))
 }
 
+// callRs frees the returned char * after it has been copied to string
+func callRs(name string) string {
+	cString := C.call_rs(getSymbolPointer(name))
+	defer tdReleaseString(cString)
+	return C.GoString(cString)
+}
+
+func callRiPi(name string, i int) int {
+	return int(C.call_ri_pi(getSymbolPointer(name), C.int(i)))
+}
+
+func callRiPii(name string, i1 int, i2 int) int {
+	return int(C.call_ri_pii(getSymbolPointer(name), C.int(i1), C.int(i2)))
+}
+
 func callRiPs(name string, s string) int {
 	sParam := C.CString(s)
 	defer C.free(unsafe.Pointer(sParam))	
@@ -88,12 +147,82 @@ func callRvPs(name string, s string) {
 	C.call_rv_ps(getSymbolPointer(name), sParam)
 }
 
+// callRsPi frees the returned char * after it has been copied to string
+func callRsPi(name string, i int) string {
+	cString := C.call_rs_pi(getSymbolPointer(name), C.int(i))
+	defer tdReleaseString(cString)
+	return C.GoString(cString)
+}
+
+func callRbPiss(name string, i int, s1 string, s2 string) bool {
+	s1Param := C.CString(s1)
+	defer C.free(unsafe.Pointer(s1Param))	
+	s2Param := C.CString(s2)
+	defer C.free(unsafe.Pointer(s2Param))	
+	if C.call_rb_piss(getSymbolPointer(name), C.int(i), s1Param, s2Param) == 0 {
+		return false
+	}
+	return true
+}
+
+// callRsPiss frees the returned char * after it has been copied to string
+func callRsPiss(name string, i int, s1 string, s2 string) string {
+	s1Param := C.CString(s1)
+	defer C.free(unsafe.Pointer(s1Param))	
+	s2Param := C.CString(s2)
+	defer C.free(unsafe.Pointer(s2Param))	
+	cString := C.call_rs_piss(getSymbolPointer(name), C.int(i), s1Param, s2Param)
+	defer tdReleaseString(cString)
+	return C.GoString(cString)
+}
+
+func callRbPis(name string, i int, s string) bool {
+	sParam := C.CString(s)
+	defer C.free(unsafe.Pointer(sParam))	
+	if C.call_rb_pis(getSymbolPointer(name), C.int(i), sParam) == 0 {
+		return false
+	}
+	return true
+}
+
+func tdReleaseString(cString *C.char) {
+	C.call_rv_ps(getSymbolPointer("tdReleaseString"), cString)
+}
+
 func tdGetNumberOfDevices() int {
 	return callRi("tdGetNumberOfDevices")
 }
 
-func tdReleaseString(theString string) {
-	callRvPs("tdReleaseString", theString) 
+func tdGetDeviceId(index int) int {
+	return callRiPi("tdGetDeviceId", index)
+}
+
+func tdGetName(id int) string {
+	return callRsPi("tdGetName", id)
+}
+
+func tdSetName(id int, name string) bool {
+	return callRbPis("tdSetName", id, name)
+}
+
+func tdAddDevice() int {
+	return callRi("tdAddDevice")
+}
+
+func tdGetErrorString() string {
+	return callRs("tdGetErrorString")
+}
+
+func tdMethods(id int, methodsSupported int) int {
+	return callRiPii("tdMethod", id, methodsSupported)
+}
+
+func tdGetDeviceParameter(id int, name string, defaultValue string) string {
+	return callRsPiss("tdGetDeviceParameter", id, name, defaultValue)
+}
+
+func tdSetDeviceParameter(id int, name string, value string) bool {
+	return callRbPiss("tdSetDeviceParameter", id, name, value)
 }
 
 func main() {
@@ -103,6 +232,7 @@ func main() {
 		fmt.Printf("Tellstick not supported. %s\n", tellstickErrorReason) 
 	}
 	fmt.Printf("Number of devices: %d\n", tdGetNumberOfDevices())
+	fmt.Printf("Name ID 1: %s\n", tdGetName(1))
 }
 	
 	
