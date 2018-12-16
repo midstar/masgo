@@ -1,4 +1,4 @@
-package main
+package tellstick
 
 import (
 	"fmt"
@@ -30,6 +30,8 @@ func TestGetDevices(t *testing.T) {
 			tl.SupportsOnOff(id),
 			tl.SupportsDim(id),
 			tl.SupportsLearn(id))
+		t.Logf("    Protocol: %s\n", tl.GetProtocol(id))
+		t.Logf("    Model: %s\n", tl.GetModel(id))
 		t.Logf("    Parameters:\n")
 		parameters := tl.GetParameters(id)
 		for key, value := range parameters {
@@ -46,5 +48,9 @@ func TestCreateDevice(t *testing.T) {
 	err = tl.SetName(id, "TestCreateDevice")
 	if err != nil {
 		t.Fatalf("Failed to set name on device %d. Reason: %s", id, err)
+	}
+	err = tl.RemoveDevice(id)
+	if err != nil {
+		t.Fatalf("Failed to remove device %d. Reason: %s", id, err)
 	}
 }

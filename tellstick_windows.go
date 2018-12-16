@@ -1,10 +1,28 @@
-package main
+package tellstick
 
 import (
 	"fmt"
 	"syscall"
 	"unsafe"
 )
+
+var (
+	tellstickSupported   = false
+	tellstickErrorReason = ""
+	library              *syscall.LazyDLL
+	lazyProcs            = make(map[string]*syscall.LazyProc)
+)
+
+func init() {
+	libraryName := "TelldusCore.dll"
+	library = syscall.NewLazyDLL(libraryName)
+	err := library.Load()
+	if err != nil {
+		tellstickErrorReason = fmt.Sprintf("Unable to load library. Reason: %s\n", err)
+		return
+	}
+	tellstickSupported = true
+}
 
 const maxStringSize = 256
 
@@ -31,174 +49,129 @@ func stringToUintptr(s string) uintptr {
 	return uintptr(unsafe.Pointer(&bytes[0]))
 }
 
-func stringInSlice(a string, list []string) bool {
-	for _, b := range list {
-		if b == a {
-			return true
-		}
-	}
-	return false
-}
-
-type TellstickLibrary struct {
-	tdGetNumberOfDevices *syscall.LazyProc
-	tdGetDeviceID        *syscall.LazyProc
-	tdGetName            *syscall.LazyProc
-	tdSetName            *syscall.LazyProc
-	tdAddDevice          *syscall.LazyProc
-	tdReleaseString      *syscall.LazyProc
-	tdGetErrorString     *syscall.LazyProc
-	tdMethods            *syscall.LazyProc
-	tdGetDeviceParameter *syscall.LazyProc
-	tdSetDeviceParameter *syscall.LazyProc
-}
-
-type tellstickMethod uint32
-
-const (
-	turnOn  tellstickMethod = 1
-	turnOff tellstickMethod = 2
-	bell    tellstickMethod = 4
-	toggle  tellstickMethod = 8
-	dim     tellstickMethod = 16
-	learn   tellstickMethod = 32
-	all     tellstickMethod = turnOn | turnOff | bell | toggle | dim | learn
-)
-
-var parameters = []string{"devices", "house", "unit", "code", "system", "units", "fade"}
-
-func NewTellstickLibrary() (*TellstickLibrary, error) {
-	libraryName := "TelldusCore.dll"
-	library := syscall.NewLazyDLL(libraryName)
-	err := library.Load()
-	if err != nil {
-		return nil, err
+func lazy(name string) *syscall.LazyProc {
+	lazyProc := lazyProcs[name]
+	if lazyProc == nil && tellstickSupported == false {
+		panic(fmt.Sprintf("Tried to access Tellstick function, but Tellstick is not supported"))
+	} else if lazyProc == nil {
+		// First time proc is is used. Load it using NewProc.
+		lazyProc = library.NewProc(name)
+		// Save symbol pointer so it can be reused later
+		lazyProcs[name] = lazyProc
 	}
 
-	return &TellstickLibrary{
-			tdGetNumberOfDevices: library.NewProc("tdGetNumberOfDevices"),
-			tdGetDeviceID:        library.NewProc("tdGetDeviceId"),
-			tdGetName:            library.NewProc("tdGetName"),
-			tdSetName:            library.NewProc("tdSetName"),
-			tdAddDevice:          library.NewProc("tdAddDevice"),
-			tdReleaseString:      library.NewProc("tdReleaseString"),
-			tdGetErrorString:     library.NewProc("tdGetErrorString"),
-			tdMethods:            library.NewProc("tdMethods"),
-			tdGetDeviceParameter: library.NewProc("tdGetDeviceParameter"),
-			tdSetDeviceParameter: library.NewProc("tdSetDeviceParameter")},
-		nil
+	return lazyProc
 }
 
-func (tl *TellstickLibrary) GetDeviceIds() ([]int, error) {
-	numDevices, _, _ := tl.tdGetNumberOfDevices.Call()
-	ids := make([]int, numDevices, numDevices)
-	var i uintptr
-	for i = 0; i < numDevices; i++ {
-		idRet, _, _ := tl.tdGetDeviceID.Call(i)
-		id := int32(idRet)
-		if id == -1 {
-			return nil, fmt.Errorf("unable to get device ID for %d. Reason: %s", i, tl.getErrorString())
-		}
-		ids[i] = int(id)
-	}
-	return ids, nil
+func tdReleaseString(cString uintptr) {
+	lazy("tdReleaseString").Call(cString)
 }
 
-func (tl *TellstickLibrary) GetName(id int) string {
-	nameRet, _, _ := tl.tdGetName.Call(uintptr(id))
-	name := uintptrToString(nameRet)
-	tl.tdReleaseString.Call(nameRet)
-	return name
+func tdGetNumberOfDevices() int {
+	ret, _, _ := lazy("tdGetNumberOfDevices").Call()
+	return int(ret)
 }
 
-func (tl *TellstickLibrary) SetName(id int, name string) error {
-	successRet, _, _ := tl.tdSetName.Call(uintptr(id), stringToUintptr(name))
-	if successRet == 0 {
-		return fmt.Errorf("unable to set device %d name to '%s'. Reason: %s'", id, name, tl.getErrorString())
-	}
-	return nil
+func tdGetDeviceId(index int) int {
+	ret, _, _ := lazy("tdGetDeviceId").Call(uintptr(index))
+	return int(ret)
 }
 
-func (tl *TellstickLibrary) supportsMethod(id int, method tellstickMethod) bool {
-	ret, _, _ := tl.tdMethods.Call(uintptr(id), uintptr(method))
-	if ret != uintptr(method) {
+// tdGetName will automatically free the c string using tdReleaseString
+// before it is converted to a Go string
+func tdGetName(id int) string {
+	ret, _, _ := lazy("tdGetName").Call(uintptr(id))
+	defer tdReleaseString(ret)
+	return uintptrToString(ret)
+}
+
+func tdSetName(id int, name string) bool {
+	ret, _, _ := lazy("tdSetName").Call(uintptr(id), stringToUintptr(name))
+	if ret == 0 {
 		return false
 	}
 	return true
 }
 
-func (tl *TellstickLibrary) SupportsOnOff(id int) bool {
-	return tl.supportsMethod(id, turnOn) && tl.supportsMethod(id, turnOn)
+func tdAddDevice() int {
+	ret, _, _ := lazy("tdAddDevice").Call()
+	return int(ret)
 }
 
-func (tl *TellstickLibrary) SupportsDim(id int) bool {
-	return tl.supportsMethod(id, dim)
-}
-
-func (tl *TellstickLibrary) SupportsLearn(id int) bool {
-	return tl.supportsMethod(id, learn)
-}
-
-func (tl *TellstickLibrary) NewDevice() (int, error) {
-	idRet, _, _ := tl.tdAddDevice.Call()
-	id := int(int32(idRet))
-	if id < 0 {
-		return 0, fmt.Errorf("unable to add device. Reason: %s", tl.getErrorString())
+func tdRemoveDevice(id int) bool {
+	ret, _, _ := lazy("tdRemoveDevice").Call(uintptr(id))
+	if ret == 0 {
+		return false
 	}
-	return id, nil
+	return true
 }
 
-func (tl *TellstickLibrary) GetParameters(id int) map[string]string {
-	result := make(map[string]string)
-	for _, parameter := range parameters {
-		valueRet, _, _ := tl.tdGetDeviceParameter.Call(uintptr(id),
-			stringToUintptr(parameter),
-			stringToUintptr(""))
-		value := uintptrToString(valueRet)
-		tl.tdReleaseString.Call(valueRet)
-		result[parameter] = value
+// tdGetErrorString will automatically free the c string using tdReleaseString
+// before it is converted to a Go string
+func tdGetErrorString() string {
+	ret, _, _ := lazy("tdGetErrorString").Call()
+	defer tdReleaseString(ret)
+	return uintptrToString(ret)
+}
 
+func tdMethods(id int, methodsSupported int) int {
+	ret, _, _ := lazy("tdMethods").Call(uintptr(id), uintptr(methodsSupported))
+	return int(ret)
+}
+func tdGetProtocol(id int) string {
+	ret, _, _ := lazy("tdGetProtocol").Call(uintptr(id))
+	defer tdReleaseString(ret)
+	return uintptrToString(ret)
+}
+
+func tdSetProtocol(id int, protocol string) bool {
+	ret, _, _ := lazy("tdSetProtocol").Call(uintptr(id), stringToUintptr(protocol))
+	if ret == 0 {
+		return false
 	}
-	return result
+	return true
 }
 
-func (tl *TellstickLibrary) SetParameters(id int, paramAndValues map[string]string) error {
-	for parameter, value := range paramAndValues {
-		if stringInSlice(parameter, parameters) == false {
-			return fmt.Errorf("unknown parameter '%s'", parameter)
-		}
-		resultRet, _, _ := tl.tdSetDeviceParameter.Call(uintptr(id),
-			stringToUintptr(parameter),
-			stringToUintptr(value))
-		if resultRet != 1 {
-			return fmt.Errorf("unable to set parameter '%s' to '%s'. Reason: %s",
-				parameter,
-				value,
-				tl.getErrorString())
-		}
+func tdGetModel(id int) string {
+	ret, _, _ := lazy("tdGetModel").Call(uintptr(id))
+	defer tdReleaseString(ret)
+	return uintptrToString(ret)
+}
+
+func tdSetModel(id int, model string) bool {
+	ret, _, _ := lazy("tdSetModel").Call(uintptr(id), stringToUintptr(model))
+	if ret == 0 {
+		return false
 	}
-	return nil
+	return true
 }
 
-func (tl *TellstickLibrary) getErrorString() string {
-	errorStringRet, _, _ := tl.tdGetErrorString.Call()
-	errorString := uintptrToString(errorStringRet)
-	tl.tdReleaseString.Call(errorStringRet)
-	return errorString
+// tdGetDeviceParameter will automatically free the c string using tdReleaseString
+// before it is converted to a Go string
+func tdGetDeviceParameter(id int, name string, defaultValue string) string {
+	ret, _, _ := lazy("tdGetDeviceParameter").Call(uintptr(id),
+		stringToUintptr(name), stringToUintptr(defaultValue))
+	defer tdReleaseString(ret)
+	return uintptrToString(ret)
 }
 
+func tdSetDeviceParameter(id int, name string, value string) bool {
+	ret, _, _ := lazy("tdSetDeviceParameter").Call(uintptr(id),
+		stringToUintptr(name), stringToUintptr(value))
+	if ret == 0 {
+		return false
+	}
+	return true
+}
+
+/*
 func main() {
-	tl, err := NewTellstickLibrary()
-	if err != nil {
-		panic(fmt.Sprintf("Error: %s\n", err))
+	if tellstickSupported {
+		fmt.Printf("Tellstick is supported\n")
+	} else {
+		fmt.Printf("Tellstick not supported. %s\n", tellstickErrorReason)
 	}
-	ids, _ := tl.GetDeviceIds()
-	for _, id := range ids {
-		fmt.Printf("Id %d: Name: '%s' OnOff: %t Dim: %t Learn: %t\n", id, tl.GetName(id), tl.SupportsOnOff(id), tl.SupportsDim(id), tl.SupportsLearn(id))
-	}
-	parameters := tl.GetParameters(1)
-	for key, value := range parameters {
-		fmt.Printf("%s = %s\n", key, value)
-	}
-	tl.SetName(11, "elvan")
+	fmt.Printf("Number of devices: %d\n", tdGetNumberOfDevices())
+	fmt.Printf("Name ID 1: %s\n", tdGetName(1))
 }
+*/
