@@ -164,6 +164,39 @@ func tdSetDeviceParameter(id int, name string, value string) bool {
 	return true
 }
 
+func tdTurnOn(id int) int {
+	ret, _, _ := lazy("tdTurnOn").Call(uintptr(id))
+	return int(int32(ret)) // unsigned 32 -> signed 32 to keep sign
+}
+
+func tdTurnOff(id int) int {
+	ret, _, _ := lazy("tdTurnOff").Call(uintptr(id))
+	return int(int32(ret)) // unsigned 32 -> signed 32 to keep sign
+}
+
+func tdDim(id int, level byte) int {
+	ret, _, _ := lazy("tdDim").Call(uintptr(id), uintptr(level))
+	return int(int32(ret)) // unsigned 32 -> signed 32 to keep sign
+}
+
+func tdLearn(id int) int {
+	ret, _, _ := lazy("tdLearn").Call(uintptr(id))
+	return int(int32(ret)) // unsigned 32 -> signed 32 to keep sign
+}
+
+func tdLastSentCommand(id int, methodsSupported int) int {
+	ret, _, _ := lazy("tdLastSentCommand").Call(uintptr(id), uintptr(methodsSupported))
+	return int(int32(ret)) // unsigned 32 -> signed 32 to keep sign
+}
+
+// tdLastSentValue will automatically free the c string using tdReleaseString
+// before it is converted to a Go string
+func tdLastSentValue(id int) string {
+	ret, _, _ := lazy("tdLastSentValue").Call(uintptr(id))
+	defer tdReleaseString(ret)
+	return uintptrToString(ret)
+}
+
 /*
 func main() {
 	if tellstickSupported {

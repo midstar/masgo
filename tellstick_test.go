@@ -89,6 +89,37 @@ func createDeviceTest(t *testing.T, name string, protocol string, model string,
 		}
 	}
 
+	// Turn on, off, dim depending on support
+	/* Below only works if tellstick is actually connected
+	if supportOnOff {
+		err = tl.TurnOn(id)
+		if err != nil {
+			t.Fatalf("Failed to turn on device %d. Reason: %s", id, err)
+		}
+		if tl.LastCmdWasOn(id) == false {
+			t.Fatalf("Turned on device %d but it is reporting off", id)
+		}
+		err = tl.TurnOff(id)
+		if err != nil {
+			t.Fatalf("Failed to turn off device %d. Reason: %s", id, err)
+		}
+		if tl.LastCmdWasOn(id) == true {
+			t.Fatalf("Turned off device %d but it is reporting on", id)
+		}
+	}
+	if supportDim {
+		dimValue := byte(57)
+		err = tl.Dim(id, dimValue)
+		if err != nil {
+			t.Fatalf("Failed to dim device %d. Reason: %s", id, err)
+		}
+		lastDimValue := tl.LastDimValue(id)
+		if lastDimValue == dimValue {
+			t.Fatalf("Dimmed device %d to %d but it is reporting %d", id, dimValue, lastDimValue)
+		}
+	}
+	*/
+
 	// Remove device (cleanup after test)
 	err = tl.RemoveDevice(id)
 	if err != nil {
@@ -110,4 +141,12 @@ func TestCreateFixedOnOffDevice(t *testing.T) {
 	params["unit"] = "2"
 	createDeviceTest(t, "TestCreateFixedOnOffDevice", "risingsun",
 		"codeswitch", params, true, false, false)
+}
+
+func TestCreateDimDevice(t *testing.T) {
+	params := make(map[string]string)
+	params["house"] = "1212353"
+	params["unit"] = "1"
+	createDeviceTest(t, "TestCreateDimDevice", "arctech",
+		"selflearning-dimmer:nexa", params, true, true, true)
 }

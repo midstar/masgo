@@ -1,6 +1,9 @@
 package tellstick
 
-import "fmt"
+import (
+	"fmt"
+	"strconv"
+)
 
 func stringInSlice(a string, list []string) bool {
 	for _, b := range list {
@@ -136,6 +139,72 @@ func (tl *TellstickLibrary) SetParameters(id int, paramAndValues map[string]stri
 				value,
 				tdGetErrorString())
 		}
+	}
+	return nil
+}
+
+func (tl *TellstickLibrary) TurnOn(id int) error {
+	return checkResult(tdTurnOn(id))
+}
+
+func (tl *TellstickLibrary) TurnOff(id int) error {
+	return checkResult(tdTurnOff(id))
+}
+
+func (tl *TellstickLibrary) Dim(id int, level byte) error {
+	return checkResult(tdDim(id, level))
+}
+
+func (tl *TellstickLibrary) Learn(id int) error {
+	return checkResult(tdLearn(id))
+}
+
+func (tl *TellstickLibrary) LastCmdWasOn(id int) bool {
+	return tdLastSentCommand(id, int(turnOn)) == int(turnOn)
+}
+
+func (tl *TellstickLibrary) LastDimValue(id int) byte {
+	valueStr := tdLastSentValue(id)
+	value, err := strconv.ParseInt(valueStr, 10, 32)
+	if err != nil {
+		value = 0
+	}
+	return byte(value)
+}
+
+func checkResult(retVal int) error {
+	errString := "unknown response code"
+	// Tellstick used signed 32 bit value whi
+	switch retVal {
+	case 0: // TELLSTICK_SUCCESS
+		errString = ""
+	case -1: // TELLSTICK_ERROR_NOT_FOUND
+		errString = "not found"
+	case -2: // TELLSTICK_ERROR_PERMISSION_DENIED
+		errString = "permission denied"
+	case -3: // TELLSTICK_ERROR_DEVICE_NOT_FOUND
+		errString = "device not found"
+	case -4: // TELLSTICK_ERROR_METHOD_NOT_SUPPORTED
+		errString = "method not supported"
+	case -5: // TELLSTICK_ERROR_COMMUNICATION
+		errString = "communication error"
+	case -6: // TELLSTICK_ERROR_CONNECTING_SERVICE
+		errString = "connecting service error"
+	case -7: // TELLSTICK_ERROR_UNKNOWN_RESPONSE
+		errString = "unknown response"
+	case -8: // TELLSTICK_ERROR_SYNTAX
+		errString = "syntax error"
+	case -9: // TELLSTICK_ERROR_BROKEN_PIPE
+		errString = "broken pipe"
+	case -10: // TELLSTICK_ERROR_COMMUNICATING_SERVICE
+		errString = "communication service error"
+	case -99: // TELLSTICK_ERROR_UNKNOWN
+		errString = "unknown error"
+	default:
+		errString = fmt.Sprintf("unknown response code %d", retVal)
+	}
+	if errString != "" {
+		return fmt.Errorf(errString)
 	}
 	return nil
 }
