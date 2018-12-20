@@ -226,7 +226,7 @@ func tdAddDevice() int {
 }
 
 func tdRemoveDevice(id int) bool {
-	return callRbPi("tdRemoveDevice")
+	return callRbPi("tdRemoveDevice", id)
 }
 
 // tdGetErrorString will automatically free the c string using tdReleaseString
@@ -239,6 +239,26 @@ func tdMethods(id int, methodsSupported int) int {
 	return callRiPii("tdMethods", id, methodsSupported)
 }
 
+// tdGetProtocol will automatically free the c string using tdReleaseString
+// before it is converted to a Go string
+func tdGetProtocol(id int) string {
+	return callRsPi("tdGetProtocol", id)
+}
+
+func tdSetProtocol(id int, protocol string) bool {
+	return callRbPis("tdSetProtocol", id, protocol)
+}
+
+// tdGetModel will automatically free the c string using tdReleaseString
+// before it is converted to a Go string
+func tdGetModel(id int) string {
+	return callRsPi("tdGetModel", id)
+}
+
+func tdSetModel(id int, model string) bool {
+	return callRbPis("tdSetModel", id, model)
+}
+
 // tdGetDeviceParameter will automatically free the c string using tdReleaseString
 // before it is converted to a Go string
 func tdGetDeviceParameter(id int, name string, defaultValue string) string {
@@ -247,6 +267,32 @@ func tdGetDeviceParameter(id int, name string, defaultValue string) string {
 
 func tdSetDeviceParameter(id int, name string, value string) bool {
 	return callRbPiss("tdSetDeviceParameter", id, name, value)
+}
+
+func tdTurnOn(id int) int {
+	return callRiPi("tdTurnOn", id)
+}
+
+func tdTurnOff(id int) int {
+	return callRiPi("tdTurnOff", id)
+}
+
+func tdDim(id int, level byte) int {
+	return callRiPii("tdDim", id, int(level))
+}
+
+func tdLearn(id int) int {
+	return callRiPi("tdLearn", id)
+}
+
+func tdLastSentCommand(id int, methodsSupported int) int {
+	return callRiPii("tdLastSentCommand", id, methodsSupported)
+}
+
+// tdLastSentValue will automatically free the c string using tdReleaseString
+// before it is converted to a Go string
+func tdLastSentValue(id int) string {
+	return callRsPi("tdLastSentValue", id)
 }
 
 /*
