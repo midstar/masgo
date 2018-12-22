@@ -40,6 +40,57 @@ func TestGetDevices(t *testing.T) {
 	}
 }
 
+func TestInvalidDevice(t *testing.T) {
+	id := 32123 // Hopefully not existing
+	name := tl.GetName(id)
+	if name != "UNKNOWN" {
+		t.Fatalf("Expected name UNKNOWN but got %s", name)
+	}
+	err := tl.SetName(id, "new name")
+	if err == nil {
+		t.Fatalf("Expected error when change name invalid device")
+	}
+	err = tl.SetProtocol(id, "new protocol")
+	if err == nil {
+		t.Fatalf("Expected error when change protocol invalid device")
+	}
+	err = tl.SetModel(id, "new model")
+	if err == nil {
+		t.Fatalf("Expected error when change model invalid device")
+	}
+	err = tl.TurnOn(id)
+	if err == nil {
+		t.Fatalf("Expected error when turn on invalid device")
+	}
+	err = tl.TurnOff(id)
+	if err == nil {
+		t.Fatalf("Expected error when turn off invalid device")
+	}
+	err = tl.Dim(id, 30)
+	if err == nil {
+		t.Fatalf("Expected error when dim invalid device")
+	}
+	err = tl.Learn(id)
+	if err == nil {
+		t.Fatalf("Expected error when learn invalid device")
+	}
+	if tl.LastCmdWasOn(id) == true {
+
+		t.Fatalf("Expected last command was on to be false on invalid device")
+	}
+	dimValue := tl.LastDimValue(id)
+	if dimValue != 0 {
+
+		t.Fatalf("Expected last dim value to be 0 invalid device but was %d", dimValue)
+	}
+
+	err = tl.RemoveDevice(id)
+	if err == nil {
+		t.Fatalf("Expected error when delete invalid device")
+	}
+
+}
+
 func createDeviceTest(t *testing.T, name string, protocol string, model string,
 	params map[string]string, supportOnOff bool, supportDim bool, supportLearn bool) {
 	// Create device
