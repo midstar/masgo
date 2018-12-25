@@ -29,7 +29,8 @@ const (
 	all     tellstickMethod = turnOn | turnOff | bell | toggle | dim | learn
 )
 
-var parameters = []string{"devices", "house", "unit", "code", "system", "units", "fade"}
+// Parameters lists the supported parametes for Tellstick devices
+var Parameters = []string{"devices", "house", "unit", "code", "system", "units", "fade"}
 
 func NewTellstickLibrary() (*TellstickLibrary, error) {
 	if tellstickSupported == false {
@@ -38,13 +39,14 @@ func NewTellstickLibrary() (*TellstickLibrary, error) {
 	return &TellstickLibrary{}, nil
 }
 
+// GetDeviceIds will always return a valid slice even on errors
 func (tl *TellstickLibrary) GetDeviceIds() ([]int, error) {
 	numDevices := tdGetNumberOfDevices()
 	ids := make([]int, numDevices, numDevices)
 	for i := 0; i < numDevices; i++ {
 		id := tdGetDeviceId(i)
 		if id == -1 {
-			return nil, fmt.Errorf("unable to get device ID for %d. Reason: %s", i, tdGetErrorString())
+			return ids, fmt.Errorf("unable to get device ID for %d. Reason: %s", i, tdGetErrorString())
 		}
 		ids[i] = int(id)
 	}
@@ -121,7 +123,7 @@ func (tl *TellstickLibrary) SetModel(id int, model string) error {
 
 func (tl *TellstickLibrary) GetParameters(id int) map[string]string {
 	result := make(map[string]string)
-	for _, parameter := range parameters {
+	for _, parameter := range Parameters {
 		value := tdGetDeviceParameter(id, parameter, "")
 		result[parameter] = value
 	}
@@ -130,7 +132,7 @@ func (tl *TellstickLibrary) GetParameters(id int) map[string]string {
 
 func (tl *TellstickLibrary) SetParameters(id int, paramAndValues map[string]string) error {
 	for parameter, value := range paramAndValues {
-		if stringInSlice(parameter, parameters) == false {
+		if stringInSlice(parameter, Parameters) == false {
 			return fmt.Errorf("unknown parameter '%s'", parameter)
 		}
 		if tdSetDeviceParameter(id, parameter, value) == false {
