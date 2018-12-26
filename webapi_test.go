@@ -122,4 +122,37 @@ func TestTurnOnOff(t *testing.T) {
 	assertTrue(t, "Device 2 shall be on", mock.devices[2].isOn == true)
 	post(t, "devices/2/off")
 	assertTrue(t, "Device 2 shall be off", mock.devices[2].isOn == false)
+
+	// Test for device not supporing on / off
+	mock.devices[3].supportOnOff = false
+	resp, _ := http.Post(fmt.Sprintf("%s/devices/3/on", baseURL), "", nil)
+	assertEqualsInt(t, "Unexpected status code",
+		http.StatusMethodNotAllowed, resp.StatusCode)
+	mock.devices[3].supportOnOff = true
+}
+
+func TestDim(t *testing.T) {
+	mock.devices[3].dimLevel = 0
+	post(t, "devices/3/dim/1")
+	assertEqualsInt(t, "Unexpected dim level", 1, int(mock.devices[3].dimLevel))
+	post(t, "devices/3/dim/255")
+	assertEqualsInt(t, "Unexpected dim level", 255, int(mock.devices[3].dimLevel))
+	post(t, "devices/3/dim/0")
+	assertEqualsInt(t, "Unexpected dim level", 0, int(mock.devices[3].dimLevel))
+
+	// Test invalid values
+	resp, _ := http.Post(fmt.Sprintf("%s/devices/3/dim/-1", baseURL), "", nil)
+	assertEqualsInt(t, "Unexpected status code",
+		http.StatusBadRequest, resp.StatusCode)
+	resp, _ = http.Post(fmt.Sprintf("%s/devices/3/dim/256", baseURL), "", nil)
+	assertEqualsInt(t, "Unexpected status code",
+		http.StatusBadRequest, resp.StatusCode)
+	resp, _ = http.Post(fmt.Sprintf("%s/devices/3/dim/abc", baseURL), "", nil)
+	assertEqualsInt(t, "Unexpected status code",
+		http.StatusBadRequest, resp.StatusCode)
+
+	// Test for device not supporing dim
+	resp, _ = http.Post(fmt.Sprintf("%s/devices/1/dim/1", baseURL), "", nil)
+	assertEqualsInt(t, "Unexpected status code",
+		http.StatusMethodNotAllowed, resp.StatusCode)
 }

@@ -77,7 +77,7 @@ func (wa *WebAPI) handleDevices(w http.ResponseWriter, r *http.Request) {
 	} else if idErr == nil {
 		// Check that device exists
 		deviceIDs, _ := wa.devices.GetDeviceIds()
-		for deviceID := range deviceIDs {
+		for _, deviceID := range deviceIDs {
 			if deviceID == id {
 				wa.handleDeviceID(id, w, r)
 				return
@@ -109,7 +109,27 @@ func (wa *WebAPI) handleDeviceID(id int, w http.ResponseWriter, r *http.Request)
 			}
 		} else {
 			w.WriteHeader(http.StatusMethodNotAllowed)
-			fmt.Fprintf(w, "Devices with id %d don't support on/off", id)
+			fmt.Fprintf(w, "Device with id %d don't support on/off", id)
+		}
+	} else if head == "dim" && r.URL.Path != "/" && r.Method == "POST" {
+		levelStr, _ := shiftPath(r.URL.Path)
+		level, levelErr := strconv.Atoi(levelStr)
+		if levelErr != nil {
+			http.Error(w, levelErr.Error(), http.StatusBadRequest)
+			return
+		}
+		if level < 0 || level > 255 {
+			http.Error(w, "Invalid dim level. Only 0 - 255 is supported", http.StatusBadRequest)
+			return
+		}
+		if wa.devices.SupportsDim(id) {
+			err := wa.devices.Dim(id, byte(level))
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+		} else {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			fmt.Fprintf(w, "Device with id %d don't support dim", id)
 		}
 	} else {
 		w.WriteHeader(http.StatusNotFound)
