@@ -116,6 +116,25 @@ func TestGetDeviceIds(t *testing.T) {
 	}
 }
 
+func TestGetDeviceConfig(t *testing.T) {
+	var config DeviceConfig
+	getObject(t, "devices/2/config", &config)
+	assertEqualsInt(t, "Invalid id received", 2, config.ID)
+	assertEqualsStr(t, "Invalid name received", mock.devices[2].name, config.Name)
+	assertEqualsStr(t, "Invalid protocol received", mock.devices[2].protocol, config.Protocol)
+	assertEqualsStr(t, "Invalid model received", mock.devices[2].model, config.Model)
+	assertEqualsStr(t, "Invalid parameter house received",
+		mock.devices[2].parameters["house"], config.Parameters["house"])
+	assertEqualsStr(t, "Invalid parameter unit received",
+		mock.devices[2].parameters["unit"], config.Parameters["unit"])
+}
+
+func TestGetDeviceConfigs(t *testing.T) {
+	var config []DeviceConfig
+	getObject(t, "devices/config", &config)
+	assertEqualsInt(t, "Invalid number or entries", len(mock.devices), len(config))
+}
+
 func TestTurnOnOff(t *testing.T) {
 	mock.devices[2].isOn = false
 	post(t, "devices/2/on")

@@ -17,6 +17,23 @@ type WebAPI struct {
 	devices DeviceLibrary
 }
 
+type DeviceConfig struct {
+	ID         int
+	Name       string
+	Protocol   string
+	Model      string
+	Parameters map[string]string
+}
+
+func (wa *WebAPI) getDeviceConfig(id int) *DeviceConfig {
+	return &DeviceConfig{
+		ID:         id,
+		Name:       wa.devices.GetName(id),
+		Protocol:   wa.devices.GetProtocol(id),
+		Model:      wa.devices.GetModel(id),
+		Parameters: wa.devices.GetParameters(id)}
+}
+
 func CreateWebAPI(port int, devices DeviceLibrary) *WebAPI {
 	portStr := fmt.Sprintf(":%d", port)
 	server := &http.Server{Addr: portStr}
@@ -74,6 +91,17 @@ func (wa *WebAPI) handleDevices(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		toJSON(deviceIDs, w)
+	} else if head == "config" && r.URL.Path == "/" && r.Method == "GET" {
+		deviceIDs, err := wa.devices.GetDeviceIds()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		var deviceConfigs []*DeviceConfig
+		for _, id := range deviceIDs {
+			deviceConfigs = append(deviceConfigs, wa.getDeviceConfig(id))
+		}
+		toJSON(deviceConfigs, w)
 	} else if idErr == nil {
 		// Check that device exists
 		deviceIDs, _ := wa.devices.GetDeviceIds()
@@ -131,6 +159,8 @@ func (wa *WebAPI) handleDeviceID(id int, w http.ResponseWriter, r *http.Request)
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			fmt.Fprintf(w, "Device with id %d don't support dim", id)
 		}
+	} else if head == "config" && r.URL.Path == "/" && r.Method == "GET" {
+		toJSON(wa.getDeviceConfig(id), w)
 	} else {
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(w, "This is not a valid path: devices/%d%s or method %s!", id, originalPath, r.Method)
