@@ -34,7 +34,8 @@ func stringInSlice(a string, list []string) bool {
 }
 
 func NewDeviceMockLibrary() *DeviceMockLibrary {
-	return &DeviceMockLibrary{}
+	return &DeviceMockLibrary{
+		devices: make(map[int]*DeviceMock)}
 }
 
 // GetDeviceIds will always return a valid slice even on errors
@@ -136,7 +137,9 @@ func (tl *DeviceMockLibrary) GetParameters(id int) map[string]string {
 }
 
 func (tl *DeviceMockLibrary) SetParameters(id int, paramAndValues map[string]string) error {
-	if val, ok := tl.devices[id]; ok == false {
+	var val *DeviceMock
+	var ok bool
+	if val, ok = tl.devices[id]; ok == false {
 		return fmt.Errorf("no device exist with id %d", id)
 	}
 	for parameter, value := range paramAndValues {

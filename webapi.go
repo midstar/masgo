@@ -27,15 +27,20 @@ func CreateWebAPI(port int, devices DeviceLibrary) *WebAPI {
 	return webAPI
 }
 
-// Start starts the HTTP server. Stop it using the Stop function.
-func (wa *WebAPI) Start() {
-	//go func() {
-	log.Printf("Starting Web API on port %s\n", wa.server.Addr)
-	if err := wa.server.ListenAndServe(); err != nil {
-		// cannot panic, because this probably is an intentional close
-		log.Printf("WebAPI: ListenAndServe() shutdown reason: %s", err)
-	}
-	//}()
+// Start starts the HTTP server. Stop it using the Stop function. Non-blocking.
+// Returns a channel that is written to when the HTTP server has stopped.
+func (wa *WebAPI) Start() chan bool {
+	done := make(chan bool)
+
+	go func() {
+		log.Printf("Starting Web API on port %s\n", wa.server.Addr)
+		if err := wa.server.ListenAndServe(); err != nil {
+			// cannot panic, because this probably is an intentional close
+			log.Printf("WebAPI: ListenAndServe() shutdown reason: %s", err)
+		}
+		done <- true // Signal that http server has stopped
+	}()
+	return done
 }
 
 // Stop stops the HTTP server.

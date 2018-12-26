@@ -37,7 +37,8 @@ func main() {
 	}
 
 	webAPI := CreateWebAPI(9834, dl)
-	webAPI.Start()
+	httpServerDone := webAPI.Start()
+	<-httpServerDone // Block until http server is done
 	/*
 		ids, _ := dl.GetDeviceIds()
 		for _, id := range ids {
