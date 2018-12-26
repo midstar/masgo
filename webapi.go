@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"path"
@@ -32,6 +33,26 @@ func (wa *WebAPI) getDeviceConfig(id int) *DeviceConfig {
 		Protocol:   wa.devices.GetProtocol(id),
 		Model:      wa.devices.GetModel(id),
 		Parameters: wa.devices.GetParameters(id)}
+}
+
+func (wa *WebAPI) updateDeviceConfig(id int, config *DeviceConfig) error {
+	err := wa.devices.SetName(id, config.Name)
+	if err != nil {
+		return err
+	}
+	err = wa.devices.SetProtocol(id, config.Protocol)
+	if err != nil {
+		return err
+	}
+	err = wa.devices.SetModel(id, config.Model)
+	if err != nil {
+		return err
+	}
+	err = wa.devices.SetParameters(id, config.Parameters)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func CreateWebAPI(port int, devices DeviceLibrary) *WebAPI {
@@ -161,6 +182,20 @@ func (wa *WebAPI) handleDeviceID(id int, w http.ResponseWriter, r *http.Request)
 		}
 	} else if head == "config" && r.URL.Path == "/" && r.Method == "GET" {
 		toJSON(wa.getDeviceConfig(id), w)
+	} else if head == "config" && r.URL.Path == "/" && r.Method == "PUT" {
+		body, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		var config DeviceConfig
+		err = json.Unmarshal(body, &config)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		}
+		err = wa.updateDeviceConfig(id, &config)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	} else {
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(w, "This is not a valid path: devices/%d%s or method %s!", id, originalPath, r.Method)

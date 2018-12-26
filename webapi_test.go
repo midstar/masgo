@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -98,6 +99,43 @@ func post(t *testing.T, path string) {
 	defer resp.Body.Close()
 }
 
+func postObject(t *testing.T, path string, v interface{}) {
+	bodyBytes, err := json.Marshal(v)
+	if err != nil {
+		t.Fatalf("Unable to generate json for path %s. Reason: %s", path, err)
+	}
+	body := bytes.NewReader(bodyBytes)
+	resp, err := http.Post(fmt.Sprintf("%s/%s", baseURL, path), "application/json", body)
+	if err != nil {
+		t.Fatalf("Unable to post path %s. Reason: %s", path, err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Unexpected status code for post path %s: %d", path, resp.StatusCode)
+	}
+	defer resp.Body.Close()
+}
+
+func putObject(t *testing.T, path string, v interface{}) {
+	bodyBytes, err := json.Marshal(v)
+	if err != nil {
+		t.Fatalf("Unable to generate json for path %s. Reason: %s", path, err)
+	}
+	body := bytes.NewReader(bodyBytes)
+	client := &http.Client{}
+	req, err := http.NewRequest(http.MethodPut, fmt.Sprintf("%s/%s", baseURL, path), body)
+	if err != nil {
+		t.Fatalf("Unable to create request for put path %s. Reason: %s", path, err)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("Unable to execute request for put path %s. Reason: %s", path, err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Unexpected status code for put path %s: %d", path, resp.StatusCode)
+	}
+	defer resp.Body.Close()
+}
+
 func TestGetDeviceIds(t *testing.T) {
 	var deviceIDs []int
 	getObject(t, "devices", &deviceIDs)
@@ -133,6 +171,30 @@ func TestGetDeviceConfigs(t *testing.T) {
 	var config []DeviceConfig
 	getObject(t, "devices/config", &config)
 	assertEqualsInt(t, "Invalid number or entries", len(mock.devices), len(config))
+}
+
+func TestPutDeviceConfig(t *testing.T) {
+	var oldConfig DeviceConfig
+	getObject(t, "devices/2/config", &oldConfig)
+	newConfig := DeviceConfig{
+		Name:     "newname",
+		Protocol: "newprotocol",
+		Model:    "newmodel",
+		Parameters: map[string]string{
+			"house": "newhouse",
+			"unit":  "newunit"},
+	}
+	putObject(t, "devices/2/config", &newConfig)
+	assertEqualsStr(t, "Invalid name", newConfig.Name, mock.devices[2].name)
+	assertEqualsStr(t, "Invalid protocol", newConfig.Protocol, mock.devices[2].protocol)
+	assertEqualsStr(t, "Invalid model", newConfig.Model, mock.devices[2].model)
+	assertEqualsStr(t, "Invalid parameter house",
+		newConfig.Parameters["house"], mock.devices[2].parameters["house"])
+	assertEqualsStr(t, "Invalid parameter unit received",
+		newConfig.Parameters["unit"], mock.devices[2].parameters["unit"])
+
+	// Restore old config
+	putObject(t, "devices/2/config", &oldConfig)
 }
 
 func TestTurnOnOff(t *testing.T) {

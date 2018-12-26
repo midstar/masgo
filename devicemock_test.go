@@ -57,6 +57,7 @@ func (tl *DeviceMockLibrary) GetName(id int) string {
 func (tl *DeviceMockLibrary) SetName(id int, name string) error {
 	if val, ok := tl.devices[id]; ok {
 		val.name = name
+		return nil
 	}
 	return fmt.Errorf("no device exist with id %d", id)
 }
