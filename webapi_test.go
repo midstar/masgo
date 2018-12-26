@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -75,7 +76,8 @@ func getObject(t *testing.T, path string, v interface{}) {
 		t.Fatalf("Unable to get path %s. Reason: %s", path, err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("Unexpected status code for path %s: %d", path, resp.StatusCode)
+		t.Fatalf("Unexpected status code for path %s: %d (%s)",
+			path, resp.StatusCode, respToString(resp.Body))
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
@@ -94,7 +96,8 @@ func post(t *testing.T, path string) {
 		t.Fatalf("Unable to post path %s. Reason: %s", path, err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("Unexpected status code for post path %s: %d", path, resp.StatusCode)
+		t.Fatalf("Unexpected status code for post path %s: %d (%s)",
+			path, resp.StatusCode, respToString(resp.Body))
 	}
 	defer resp.Body.Close()
 }
@@ -110,7 +113,8 @@ func postObject(t *testing.T, path string, v interface{}) {
 		t.Fatalf("Unable to post path %s. Reason: %s", path, err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("Unexpected status code for post path %s: %d", path, resp.StatusCode)
+		t.Fatalf("Unexpected status code for post path %s: %d (%s)",
+			path, resp.StatusCode, respToString(resp.Body))
 	}
 	defer resp.Body.Close()
 }
@@ -131,9 +135,17 @@ func putObject(t *testing.T, path string, v interface{}) {
 		t.Fatalf("Unable to execute request for put path %s. Reason: %s", path, err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("Unexpected status code for put path %s: %d", path, resp.StatusCode)
+		t.Fatalf("Unexpected status code for put path %s: %d (%s)",
+			path, resp.StatusCode, respToString(resp.Body))
 	}
 	defer resp.Body.Close()
+}
+
+func respToString(response io.ReadCloser) string {
+	defer response.Close()
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(response)
+	return buf.String()
 }
 
 func TestGetDeviceIds(t *testing.T) {
@@ -195,6 +207,30 @@ func TestPutDeviceConfig(t *testing.T) {
 
 	// Restore old config
 	putObject(t, "devices/2/config", &oldConfig)
+}
+
+func TestDeleteDevice(t *testing.T) {
+	// Copy device
+	oldCopy := *mock.devices[2]
+
+	client := &http.Client{}
+	req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/devices/2/config", baseURL), nil)
+	if err != nil {
+		t.Fatalf("Unable to create request for delete devices/2/config. Reason: %s", err)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("Unable to execute request for delete devices/2/config. Reason: %s", err)
+	}
+	assertEqualsInt(t, "Unexpected status code",
+		http.StatusOK, resp.StatusCode)
+
+	_, exists := mock.devices[2]
+	assertTrue(t, "Device 2 was never removed", exists == false)
+
+	// Put back old device
+	mock.devices[2] = &oldCopy
+
 }
 
 func TestTurnOnOff(t *testing.T) {

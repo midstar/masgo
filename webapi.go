@@ -182,7 +182,7 @@ func (wa *WebAPI) handleDeviceID(id int, w http.ResponseWriter, r *http.Request)
 		}
 	} else if head == "config" && r.URL.Path == "/" && r.Method == "GET" {
 		toJSON(wa.getDeviceConfig(id), w)
-	} else if head == "config" && r.URL.Path == "/" && r.Method == "PUT" {
+	} else if head == "config" && r.URL.Path == "/" && (r.Method == "PUT") {
 		body, err := ioutil.ReadAll(r.Body)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -193,6 +193,11 @@ func (wa *WebAPI) handleDeviceID(id int, w http.ResponseWriter, r *http.Request)
 			http.Error(w, err.Error(), http.StatusBadRequest)
 		}
 		err = wa.updateDeviceConfig(id, &config)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	} else if head == "config" && r.URL.Path == "/" && r.Method == "DELETE" {
+		err := wa.devices.RemoveDevice(id)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
