@@ -174,6 +174,14 @@ func (tl *TellstickLibrary) LastDimValue(id int) byte {
 	return byte(value)
 }
 
+func (tl *TellstickLibrary) MinDimLevel() int {
+	return 0
+}
+
+func (tl *TellstickLibrary) MaxDimLevel() int {
+	return 255
+}
+
 func checkResult(retVal int) error {
 	errString := "unknown response code"
 	// Tellstick used signed 32 bit value whi
@@ -210,21 +218,3 @@ func checkResult(retVal int) error {
 	}
 	return nil
 }
-
-/*
-func main() {
-	tl, err := NewTellstickLibrary()
-	if err != nil {
-		panic(fmt.Sprintf("Error: %s\n", err))
-	}
-	ids, _ := tl.GetDeviceIds()
-	for _, id := range ids {
-		fmt.Printf("Id %d: Name: '%s' OnOff: %t Dim: %t Learn: %t\n", id, tl.GetName(id), tl.SupportsOnOff(id), tl.SupportsDim(id), tl.SupportsLearn(id))
-	}
-	parameters := tl.GetParameters(1)
-	for key, value := range parameters {
-		fmt.Printf("%s = %s\n", key, value)
-	}
-	tl.SetName(11, "elvan")
-}
-*/

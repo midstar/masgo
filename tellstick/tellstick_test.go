@@ -201,3 +201,12 @@ func TestCreateDimDevice(t *testing.T) {
 	createDeviceTest(t, "TestCreateDimDevice", "arctech",
 		"selflearning-dimmer:nexa", params, true, true, true)
 }
+
+func TestMinMaxDimLevel(t *testing.T) {
+	if tl.MinDimLevel() != 0 {
+		t.Fatalf("Invalid min dim level")
+	}
+	if tl.MaxDimLevel() != 255 {
+		t.Fatalf("Invalid max dim level")
+	}
+}

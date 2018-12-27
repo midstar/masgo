@@ -27,6 +27,8 @@ type DeviceLibrary interface {
 	Learn(id int) error
 	LastCmdWasOn(id int) bool
 	LastDimValue(id int) byte
+	MinDimLevel() int
+	MaxDimLevel() int
 }
 
 func main() {

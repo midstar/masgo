@@ -55,6 +55,40 @@ func (wa *WebAPI) updateDeviceConfig(id int, config *DeviceConfig) error {
 	return nil
 }
 
+type DeviceStatus struct {
+	ID            int
+	Name          string
+	SupportsOnOff bool
+	SupportsDim   bool
+	SupportsLearn bool
+	LastCmdWasOn  bool
+	DimLevelMin   int
+	DimLevelMax   int
+	DimLevelLast  byte
+}
+
+func (wa *WebAPI) getDeviceStatus(id int) *DeviceStatus {
+	dimLevelLast := byte(0)
+	dimMin := 0
+	dimMax := 0
+	if wa.devices.SupportsDim(id) {
+		dimLevelLast = wa.devices.LastDimValue(id)
+		dimMin = wa.devices.MinDimLevel()
+		dimMax = wa.devices.MaxDimLevel()
+	}
+
+	return &DeviceStatus{
+		ID:            id,
+		Name:          wa.devices.GetName(id),
+		SupportsOnOff: wa.devices.SupportsOnOff(id),
+		SupportsDim:   wa.devices.SupportsDim(id),
+		SupportsLearn: wa.devices.SupportsLearn(id),
+		LastCmdWasOn:  wa.devices.LastCmdWasOn(id),
+		DimLevelMin:   dimMin,
+		DimLevelMax:   dimMax,
+		DimLevelLast:  dimLevelLast}
+}
+
 func CreateWebAPI(port int, devices DeviceLibrary) *WebAPI {
 	portStr := fmt.Sprintf(":%d", port)
 	server := &http.Server{Addr: portStr}
@@ -111,7 +145,11 @@ func (wa *WebAPI) handleDevices(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		toJSON(deviceIDs, w)
+		var deviceStatuses []*DeviceStatus
+		for _, id := range deviceIDs {
+			deviceStatuses = append(deviceStatuses, wa.getDeviceStatus(id))
+		}
+		toJSON(deviceStatuses, w)
 	} else if head == "config" && r.URL.Path == "/" && r.Method == "GET" {
 		deviceIDs, err := wa.devices.GetDeviceIds()
 		if err != nil {
@@ -135,12 +173,12 @@ func (wa *WebAPI) handleDevices(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		newId, err := wa.devices.NewDevice()
+		newID, err := wa.devices.NewDevice()
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		err = wa.updateDeviceConfig(newId, &config)
+		err = wa.updateDeviceConfig(newID, &config)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -182,6 +220,16 @@ func (wa *WebAPI) handleDeviceID(id int, w http.ResponseWriter, r *http.Request)
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			fmt.Fprintf(w, "Device with id %d don't support on/off", id)
 		}
+	} else if head == "learn" && r.URL.Path == "/" && r.Method == "POST" {
+		if wa.devices.SupportsLearn(id) {
+			err := wa.devices.Learn(id)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+		} else {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			fmt.Fprintf(w, "Device with id %d don't support learn", id)
+		}
 	} else if head == "dim" && r.URL.Path != "/" && r.Method == "POST" {
 		levelStr, _ := shiftPath(r.URL.Path)
 		level, levelErr := strconv.Atoi(levelStr)
@@ -189,8 +237,8 @@ func (wa *WebAPI) handleDeviceID(id int, w http.ResponseWriter, r *http.Request)
 			http.Error(w, levelErr.Error(), http.StatusBadRequest)
 			return
 		}
-		if level < 0 || level > 255 {
-			http.Error(w, "Invalid dim level. Only 0 - 255 is supported", http.StatusBadRequest)
+		if level < wa.devices.MinDimLevel() || level > wa.devices.MaxDimLevel() {
+			http.Error(w, "Invalid dim level.", http.StatusBadRequest)
 			return
 		}
 		if wa.devices.SupportsDim(id) {
@@ -223,6 +271,8 @@ func (wa *WebAPI) handleDeviceID(id int, w http.ResponseWriter, r *http.Request)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
+	} else if head == "" && r.Method == "GET" {
+		toJSON(wa.getDeviceStatus(id), w)
 	} else {
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(w, "This is not a valid path: devices/%d%s or method %s!", id, originalPath, r.Method)

@@ -148,14 +148,16 @@ func respToString(response io.ReadCloser) string {
 	return buf.String()
 }
 
-func TestGetDeviceIds(t *testing.T) {
-	var deviceIDs []int
-	getObject(t, "devices", &deviceIDs)
-	assertEqualsInt(t, "Invalid devices received", len(mock.devices), len(deviceIDs))
+func TestGetDeviceStatuses(t *testing.T) {
+	var status []DeviceStatus
+	getObject(t, "devices", &status)
+	assertEqualsInt(t, "Invalid number or entries", len(mock.devices), len(status))
+
+	// Check that all id's are represented
 	for id := range mock.devices {
 		idFound := false
-		for i := 0; i < len(deviceIDs); i++ {
-			if id == deviceIDs[i] {
+		for i := 0; i < len(status); i++ {
+			if id == status[i].ID {
 				idFound = true
 				break
 			}
@@ -164,6 +166,38 @@ func TestGetDeviceIds(t *testing.T) {
 			t.Fatalf("Device with id %d not recived", id)
 		}
 	}
+}
+
+func TestGetDeviceStatus(t *testing.T) {
+
+	// Start with dimmable device
+	mock.devices[2].dimLevel = 23
+	mock.devices[2].isOn = true
+
+	var status DeviceStatus
+	getObject(t, "devices/2", &status)
+	assertEqualsInt(t, "Invalid id", 2, status.ID)
+	assertEqualsStr(t, "Invalid name", mock.devices[2].name, status.Name)
+	assertEqualsBool(t, "Invalid on/off support", mock.devices[2].supportOnOff, status.SupportsOnOff)
+	assertEqualsBool(t, "Invalid dim support", mock.devices[2].supportDim, status.SupportsDim)
+	assertEqualsBool(t, "Invalid learn support", mock.devices[2].supportLearn, status.SupportsLearn)
+	assertEqualsBool(t, "Invalid last command", mock.devices[2].isOn, status.LastCmdWasOn)
+	assertEqualsInt(t, "Invalid min dim level", 0, status.DimLevelMin)
+	assertEqualsInt(t, "Invalid max dim level", 255, status.DimLevelMax)
+	assertEqualsInt(t, "Invalid last dim level", int(mock.devices[2].dimLevel), int(status.DimLevelLast))
+
+	// Now test non-dimmable device
+	mock.devices[1].isOn = false
+	getObject(t, "devices/1", &status)
+	assertEqualsInt(t, "Invalid id", 1, status.ID)
+	assertEqualsStr(t, "Invalid name", mock.devices[1].name, status.Name)
+	assertEqualsBool(t, "Invalid on/off support", mock.devices[1].supportOnOff, status.SupportsOnOff)
+	assertEqualsBool(t, "Invalid dim support", mock.devices[1].supportDim, status.SupportsDim)
+	assertEqualsBool(t, "Invalid learn support", mock.devices[1].supportLearn, status.SupportsLearn)
+	assertEqualsBool(t, "Invalid last command", mock.devices[1].isOn, status.LastCmdWasOn)
+	assertEqualsInt(t, "Invalid min dim level", 0, status.DimLevelMin)
+	assertEqualsInt(t, "Invalid max dim level", 0, status.DimLevelMax)
+	assertEqualsInt(t, "Invalid last dim level", 0, int(status.DimLevelLast))
 }
 
 func TestGetDeviceConfig(t *testing.T) {
@@ -271,6 +305,20 @@ func TestTurnOnOff(t *testing.T) {
 	assertEqualsInt(t, "Unexpected status code",
 		http.StatusMethodNotAllowed, resp.StatusCode)
 	mock.devices[3].supportOnOff = true
+}
+
+func TestLearn(t *testing.T) {
+	mock.devices[3].learnCount = 0
+	post(t, "devices/3/learn")
+	assertEqualsInt(t, "Learn count shall be incremented", 1, mock.devices[3].learnCount)
+	post(t, "devices/3/learn")
+	assertEqualsInt(t, "Learn count shall be incremented", 2, mock.devices[3].learnCount)
+
+	// Test for device not supporing learn
+	mock.devices[1].supportLearn = false
+	resp, _ := http.Post(fmt.Sprintf("%s/devices/1/learn", baseURL), "", nil)
+	assertEqualsInt(t, "Unexpected status code",
+		http.StatusMethodNotAllowed, resp.StatusCode)
 }
 
 func TestDim(t *testing.T) {

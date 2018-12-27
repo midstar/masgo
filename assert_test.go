@@ -22,6 +22,10 @@ func assertEqualsStr(t *testing.T, message string, expected string, actual strin
 	assertTrue(t, fmt.Sprintf("%s\nExpected: %s, Actual: %s", message, expected, actual), expected == actual)
 }
 
+func assertEqualsBool(t *testing.T, message string, expected bool, actual bool) {
+	assertTrue(t, fmt.Sprintf("%s\nExpected: %t, Actual: %t", message, expected, actual), expected == actual)
+}
+
 func assertEqualsSlice(t *testing.T, message string, expected []uint32, actual []uint32) {
 	assertEqualsInt(t, fmt.Sprintf("%s\nSize missmatch", message), len(expected), len(actual))
 	for index, expvalue := range expected {

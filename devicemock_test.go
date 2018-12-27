@@ -210,3 +210,11 @@ func (tl *DeviceMockLibrary) LastDimValue(id int) byte {
 	}
 	return 0
 }
+
+func (tl *DeviceMockLibrary) MinDimLevel() int {
+	return 0
+}
+
+func (tl *DeviceMockLibrary) MaxDimLevel() int {
+	return 255
+}
