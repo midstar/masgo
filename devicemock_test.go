@@ -85,13 +85,14 @@ func (tl *DeviceMockLibrary) SupportsLearn(id int) bool {
 
 func (tl *DeviceMockLibrary) NewDevice() (int, error) {
 	// Find next id
-	ok := false
+	ok := true
 	id := 0
-	for ok == false {
+	for ok == true {
 		id++
 		_, ok = tl.devices[id]
 	}
-	tl.devices[id] = &DeviceMock{}
+	tl.devices[id] = &DeviceMock{
+		parameters: make(map[string]string)}
 	return id, nil
 }
 

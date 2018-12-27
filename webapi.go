@@ -123,6 +123,28 @@ func (wa *WebAPI) handleDevices(w http.ResponseWriter, r *http.Request) {
 			deviceConfigs = append(deviceConfigs, wa.getDeviceConfig(id))
 		}
 		toJSON(deviceConfigs, w)
+	} else if head == "config" && r.URL.Path == "/" && r.Method == "POST" {
+		body, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		var config DeviceConfig
+		err = json.Unmarshal(body, &config)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		newId, err := wa.devices.NewDevice()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		err = wa.updateDeviceConfig(newId, &config)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	} else if idErr == nil {
 		// Check that device exists
 		deviceIDs, _ := wa.devices.GetDeviceIds()

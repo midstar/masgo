@@ -209,6 +209,31 @@ func TestPutDeviceConfig(t *testing.T) {
 	putObject(t, "devices/2/config", &oldConfig)
 }
 
+func TestNewDeviceConfig(t *testing.T) {
+	numDevices := len(mock.devices)
+	newConfig := DeviceConfig{
+		Name:     "newname",
+		Protocol: "newprotocol",
+		Model:    "newmodel",
+		Parameters: map[string]string{
+			"house": "newhouse",
+			"unit":  "newunit"},
+	}
+	postObject(t, "devices/config", &newConfig)
+	assertEqualsInt(t, "No new device created", numDevices+1, len(mock.devices))
+	id := len(mock.devices)
+	assertEqualsStr(t, "Invalid name", newConfig.Name, mock.devices[id].name)
+	assertEqualsStr(t, "Invalid protocol", newConfig.Protocol, mock.devices[id].protocol)
+	assertEqualsStr(t, "Invalid model", newConfig.Model, mock.devices[id].model)
+	assertEqualsStr(t, "Invalid parameter house",
+		newConfig.Parameters["house"], mock.devices[id].parameters["house"])
+	assertEqualsStr(t, "Invalid parameter unit received",
+		newConfig.Parameters["unit"], mock.devices[id].parameters["unit"])
+
+	// Delete the new device
+	delete(mock.devices, id)
+}
+
 func TestDeleteDevice(t *testing.T) {
 	// Copy device
 	oldCopy := *mock.devices[2]
