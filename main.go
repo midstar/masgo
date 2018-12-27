@@ -37,8 +37,9 @@ func main() {
 	if err != nil {
 		panic(fmt.Sprintf("Error: %s\n", err))
 	}
+	groups := createGroups(dl)
 
-	webAPI := CreateWebAPI(9834, dl)
+	webAPI := CreateWebAPI(9834, dl, groups)
 	httpServerDone := webAPI.Start()
 	<-httpServerDone // Block until http server is done
 	/*

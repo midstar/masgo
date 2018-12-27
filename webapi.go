@@ -16,6 +16,7 @@ import (
 type WebAPI struct {
 	server  *http.Server
 	devices DeviceLibrary
+	groups  *Groups
 }
 
 type DeviceConfig struct {
@@ -89,12 +90,13 @@ func (wa *WebAPI) getDeviceStatus(id int) *DeviceStatus {
 		DimLevelLast:  dimLevelLast}
 }
 
-func CreateWebAPI(port int, devices DeviceLibrary) *WebAPI {
+func CreateWebAPI(port int, devices DeviceLibrary, groups *Groups) *WebAPI {
 	portStr := fmt.Sprintf(":%d", port)
 	server := &http.Server{Addr: portStr}
 	webAPI := &WebAPI{
 		server:  server,
-		devices: devices}
+		devices: devices,
+		groups:  groups}
 	http.Handle("/", webAPI)
 	return webAPI
 }
@@ -126,11 +128,47 @@ func (wa *WebAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	head, r.URL.Path = shiftPath(r.URL.Path)
 	if head == "devices" {
 		wa.handleDevices(w, r)
+	} else if head == "groups" {
+		wa.handleGroups(w, r)
 	} else if head == "shutdown" && r.Method == "POST" {
 		wa.Stop()
 	} else {
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(w, "This is not a valid path: %s or method %s!", r.URL.Path, r.Method)
+	}
+}
+
+// handleGroups handles url devices/*
+func (wa *WebAPI) handleGroups(w http.ResponseWriter, r *http.Request) {
+	var head string
+	head, r.URL.Path = shiftPath(r.URL.Path)
+	id, idErr := strconv.Atoi(head)
+	if head == "" && r.Method == "GET" {
+		toJSON(wa.groups.getGroups(), w)
+	} else if idErr == nil {
+		// Check that group exists
+		if wa.groups.get(id) != nil {
+			wa.handleGroupID(id, w, r)
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprintf(w, "Group with id %d does not exist", id)
+	} else {
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprintf(w, "This is not a valid path: groups/%s or method %s!", r.URL.Path, r.Method)
+	}
+}
+
+// handleGroupID handles url groups/<id>/*
+func (wa *WebAPI) handleGroupID(id int, w http.ResponseWriter, r *http.Request) {
+	var head string
+	originalPath := r.URL.Path
+	head, r.URL.Path = shiftPath(r.URL.Path)
+	if head == "" && r.Method == "GET" {
+		toJSON(wa.groups.get(id), w)
+	} else {
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprintf(w, "This is not a valid path: groups/%d%s or method %s!", id, originalPath, r.Method)
 	}
 }
 

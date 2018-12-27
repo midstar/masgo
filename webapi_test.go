@@ -12,13 +12,15 @@ import (
 )
 
 var mock *DeviceMockLibrary
+var groups *Groups
 var baseURL string
 
 const port int = 9843
 
 func TestMain(m *testing.M) {
 	mock = NewDeviceMockLibrary()
-	webAPI := CreateWebAPI(port, mock)
+	groups = createGroups(mock)
+	webAPI := CreateWebAPI(port, mock, groups)
 	baseURL = fmt.Sprintf("http://localhost:%d", port)
 
 	// Add some devices
@@ -63,6 +65,19 @@ func TestMain(m *testing.M) {
 		supportLearn: true,
 		isOn:         false,
 		dimLevel:     0}
+
+	// Add some groups
+	group1 := Group{
+		ID:      1,
+		Name:    "groupone",
+		Devices: []int{1, 2, 3}}
+	groups.add(&group1)
+
+	group2 := Group{
+		ID:      2,
+		Name:    "grouptwo",
+		Devices: []int{1, 2}}
+	groups.add(&group2)
 
 	webAPI.Start()
 	retCode := m.Run()
@@ -345,4 +360,24 @@ func TestDim(t *testing.T) {
 	resp, _ = http.Post(fmt.Sprintf("%s/devices/1/dim/1", baseURL), "", nil)
 	assertEqualsInt(t, "Unexpected status code",
 		http.StatusMethodNotAllowed, resp.StatusCode)
+}
+
+func TestGetGroups(t *testing.T) {
+	var resultGroups []Groups
+	getObject(t, "groups", &resultGroups)
+	assertEqualsInt(t, "Invalid number of groups", len(groups.Groups), len(resultGroups))
+}
+
+func TestGetGroup(t *testing.T) {
+	var group Group
+	getObject(t, "groups/1", &group)
+	assertEqualsInt(t, "Invalid ID", 1, group.ID)
+	assertEqualsStr(t, "Invalid name", groups.Groups[1].Name, group.Name)
+	assertEqualsInt(t, "Invalid number of devices",
+		len(groups.Groups[1].Devices), len(group.Devices))
+
+	// Test get group that don't exist
+	resp, _ := http.Get(fmt.Sprintf("%s/groups/3", baseURL))
+	assertEqualsInt(t, "Unexpected status code",
+		http.StatusNotFound, resp.StatusCode)
 }
