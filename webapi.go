@@ -166,6 +166,31 @@ func (wa *WebAPI) handleGroupID(id int, w http.ResponseWriter, r *http.Request) 
 	head, r.URL.Path = shiftPath(r.URL.Path)
 	if head == "" && r.Method == "GET" {
 		toJSON(wa.groups.get(id), w)
+	} else if head == "on" && r.URL.Path == "/" && r.Method == "POST" {
+		err := wa.groups.turnOn(id)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	} else if head == "off" && r.URL.Path == "/" && r.Method == "POST" {
+		err := wa.groups.turnOff(id)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	} else if head == "dim" && r.URL.Path != "/" && r.Method == "POST" {
+		levelStr, _ := shiftPath(r.URL.Path)
+		level, levelErr := strconv.Atoi(levelStr)
+		if levelErr != nil {
+			http.Error(w, levelErr.Error(), http.StatusBadRequest)
+			return
+		}
+		if level < wa.devices.MinDimLevel() || level > wa.devices.MaxDimLevel() {
+			http.Error(w, "Invalid dim level.", http.StatusBadRequest)
+			return
+		}
+		err := wa.groups.dim(id, byte(level))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	} else {
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(w, "This is not a valid path: groups/%d%s or method %s!", id, originalPath, r.Method)

@@ -381,3 +381,36 @@ func TestGetGroup(t *testing.T) {
 	assertEqualsInt(t, "Unexpected status code",
 		http.StatusNotFound, resp.StatusCode)
 }
+
+func TestTurnOnOffGroup(t *testing.T) {
+	for _, deviceID := range groups.Groups[2].Devices {
+		mock.devices[deviceID].isOn = false
+	}
+	post(t, "groups/2/on")
+	for _, deviceID := range groups.Groups[2].Devices {
+		assertEqualsBool(t, fmt.Sprintf("Device %d shall be on", deviceID),
+			true, mock.devices[deviceID].isOn)
+	}
+	post(t, "groups/2/off")
+	for _, deviceID := range groups.Groups[2].Devices {
+		assertEqualsBool(t, fmt.Sprintf("Device %d shall be off", deviceID),
+			false, mock.devices[deviceID].isOn)
+	}
+}
+
+func TestDimGroup(t *testing.T) {
+	mock.devices[3].dimLevel = 0 // Device 3 is in group 1
+	post(t, "groups/1/dim/44")
+	assertEqualsInt(t, "Unexpected dim level", 44, int(mock.devices[3].dimLevel))
+
+	// Test invalid values
+	resp, _ := http.Post(fmt.Sprintf("%s/groups/1/dim/-1", baseURL), "", nil)
+	assertEqualsInt(t, "Unexpected status code",
+		http.StatusBadRequest, resp.StatusCode)
+	resp, _ = http.Post(fmt.Sprintf("%s/groups/1/dim/256", baseURL), "", nil)
+	assertEqualsInt(t, "Unexpected status code",
+		http.StatusBadRequest, resp.StatusCode)
+	resp, _ = http.Post(fmt.Sprintf("%s/groups/1/dim/abc", baseURL), "", nil)
+	assertEqualsInt(t, "Unexpected status code",
+		http.StatusBadRequest, resp.StatusCode)
+}
