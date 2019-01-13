@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -60,6 +61,26 @@ func (g *Group) toConfigStr() string {
 	builder.WriteString(fmt.Sprintf("GROUP %d \"%s\"", g.ID, g.Name))
 	for _, id := range g.Devices {
 		builder.WriteString(fmt.Sprintf(" %d", id))
+	}
+	return builder.String()
+}
+
+// toConfigStr always stores the groups in order of their ID
+func (g *Groups) toConfigStr() string {
+	// First get all ID:s and sort them
+	keys := make([]int, len(g.Groups))
+	i := 0
+	for key := range g.Groups {
+		keys[i] = key
+		i++
+	}
+	sort.Ints(keys)
+
+	// Now convert to string
+	builder := strings.Builder{}
+	for _, key := range keys {
+		group := g.Groups[key]
+		builder.WriteString(fmt.Sprintf("%s\n", group.toConfigStr()))
 	}
 	return builder.String()
 }

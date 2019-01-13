@@ -1,6 +1,9 @@
 package main
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 func TestParseGroup(t *testing.T) {
 	group, err := parseGroup("GROUP 5 \"hello there\" 99")
@@ -72,4 +75,30 @@ func TestParseGroupError(t *testing.T) {
 	// Non numeric device ID
 	_, err = parseGroup("GROUP 2 \"hello there\" a")
 	assertExpectErr(t, "", err)
+}
+
+func TestParseGroups(t *testing.T) {
+	mock := NewDeviceMockLibrary()
+	groups := createGroups(mock)
+
+	group1Str := "GROUP 1 \"group1\" 1"
+	group1, err := parseGroup(group1Str)
+	assertExpectNoErr(t, "", err)
+	groups.add(group1)
+
+	group2Str := "GROUP 2 \"group2\" 2 1"
+	group2, err := parseGroup(group2Str)
+	assertExpectNoErr(t, "", err)
+	groups.add(group2)
+
+	group3Str := "GROUP 3 \"group3\" 3 2 1"
+	group3, err := parseGroup(group3Str)
+	assertExpectNoErr(t, "", err)
+	groups.add(group3)
+
+	expectedStr := fmt.Sprintf("%s\n%s\n%s\n", group1Str, group2Str, group3Str)
+	groupsStr := groups.toConfigStr()
+
+	assertEqualsStr(t, "groups config syntax", expectedStr, groupsStr)
+
 }
