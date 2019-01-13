@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 )
 
 // Group represents a collection of devices
@@ -15,6 +17,51 @@ type Group struct {
 type Groups struct {
 	Groups map[int]*Group // Keyed on group id
 	dl     DeviceLibrary
+}
+
+// parseGroup creates a group from the configuration syntax:
+//   GROUP <groupID> "<name>" <ID1> [<ID2> .. <IDn>]
+func parseGroup(configStr string) (*Group, error) {
+	sections := strings.Split(configStr, "\"")
+	if len(sections) != 3 {
+		return nil, fmt.Errorf("Group name must be within \"")
+	}
+	words := strings.Fields(sections[0])
+	if len(words) != 2 {
+		return nil, fmt.Errorf("Group id is missing")
+	}
+	if words[0] != "GROUP" {
+		return nil, fmt.Errorf("This is not a group configuration. Expected GROUP got %s", words[0])
+	}
+	groupID, err := strconv.Atoi(words[1])
+	if err != nil {
+		return nil, fmt.Errorf("invalid group id %s", words[1])
+	}
+	groupName := sections[1]
+	deviceIDStrs := strings.Fields(sections[2])
+	nbrDevices := len(deviceIDStrs)
+	devices := make([]int, nbrDevices)
+	for i := 0; i < nbrDevices; i++ {
+		deviceIDStr := deviceIDStrs[i]
+		devices[i], err = strconv.Atoi(deviceIDStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid device id %s", deviceIDStr)
+		}
+	}
+	result := Group{
+		ID:      groupID,
+		Name:    groupName,
+		Devices: devices}
+	return &result, nil
+}
+
+func (g *Group) toConfigStr() string {
+	builder := strings.Builder{}
+	builder.WriteString(fmt.Sprintf("GROUP %d \"%s\"", g.ID, g.Name))
+	for _, id := range g.Devices {
+		builder.WriteString(fmt.Sprintf(" %d", id))
+	}
+	return builder.String()
 }
 
 func createGroups(dl DeviceLibrary) *Groups {

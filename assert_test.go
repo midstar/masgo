@@ -14,6 +14,20 @@ func assertTrue(t *testing.T, message string, check bool) {
 	}
 }
 
+func assertExpectNoErr(t *testing.T, message string, err error) {
+	if err != nil {
+		debug.PrintStack()
+		t.Fatalf("%s : %s", message, err)
+	}
+}
+
+func assertExpectErr(t *testing.T, message string, err error) {
+	if err == nil {
+		debug.PrintStack()
+		t.Fatal(message)
+	}
+}
+
 func assertEqualsInt(t *testing.T, message string, expected int, actual int) {
 	assertTrue(t, fmt.Sprintf("%s\nExpected: %d, Actual: %d", message, expected, actual), expected == actual)
 }
